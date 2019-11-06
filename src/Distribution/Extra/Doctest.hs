@@ -57,7 +57,7 @@ import Data.String
 import Distribution.Package
        (InstalledPackageId, Package (..))
 import Distribution.PackageDescription
-       (BuildInfo (..), Executable (..), GenericPackageDescription,
+       (BuildInfo (..), Executable (..), GenericPackageDescription, withLib,
        Library (..), PackageDescription, TestSuite (..))
 import Distribution.Simple
        (UserHooks (..), autoconfUserHooks, defaultMainWithHooks,
@@ -65,8 +65,8 @@ import Distribution.Simple
 import Distribution.Simple.Compiler
        (CompilerFlavor (GHC), CompilerId (..), PackageDB (..), compilerId)
 import Distribution.Simple.LocalBuildInfo
-       (ComponentLocalBuildInfo (componentPackageDeps), LocalBuildInfo,
-       compiler, withExeLBI, withLibLBI, withPackageDB, withTestLBI)
+       (ComponentLocalBuildInfo (componentPackageDeps), LocalBuildInfo, allComponentsInBuildOrder,
+       compiler, withExeLBI, withPackageDB, withTestLBI)
 import Distribution.Simple.Setup
        (BuildFlags (buildDistPref, buildVerbosity),
        HaddockFlags (haddockDistPref, haddockVerbosity), emptyBuildFlags,
@@ -370,7 +370,7 @@ generateBuildModule testSuiteName flags pkg lbi = do
            modifyIORef componentsRef (\cs -> cs ++ [component])
 
     -- For now, we only check for doctests in libraries and executables.
-    getBuildDoctests withLibLBI mbLibraryName           exposedModules (const Nothing)     libBuildInfo
+    getBuildDoctests libraryLBI mbLibraryName           exposedModules (const Nothing)     libBuildInfo
     getBuildDoctests withExeLBI (NameExe . executableName) (const [])     (Just . modulePath) buildInfo
 
     components <- readIORef componentsRef
@@ -409,6 +409,7 @@ generateBuildModule testSuiteName flags pkg lbi = do
       ]
 
   where
+    libraryLBI pkg' lbi' f = withLib pkg' (\lib -> f lib (head (allComponentsInBuildOrder lbi')))
     parseComponentName :: String -> Maybe Name
     parseComponentName "lib"                       = Just (NameLib Nothing)
     parseComponentName ('l' : 'i' : 'b' : ':' : x) = Just (NameLib (Just x))
